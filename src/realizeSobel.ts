@@ -2,277 +2,164 @@ import "../lib/cuon-utils";
 import "../lib/cuon-matrix";
 import "../lib/webgl-debug";
 import "../lib/webgl-utils";
-import {createGLBuffer,createTable} from "./createModel"
+import { GltfAsset, GltfLoader } from 'gltf-loader-ts';
+import { GlTf, Image, Material, MaterialPbrMetallicRoughness, Mesh, Scene, Texture, TextureInfo } from "gltf-loader-ts/lib/gltf";
 
 
-const urls = ["src/shader/outline.vs", "src/shader/outline.fs"];
-Promise.all(urls.map(url =>
+const models = ["src/shader/cube.vs", "src/shader/cube.fs"];
+Promise.all(models.map(url =>
     fetch(url).then(resp => resp.text())
-)).then(shader => {
-    const canvas = document.getElementById("canvas") as HTMLElement;
-    const gl = getWebGLContext(canvas,{});
-    // gl.enable(gl.SAMPLE_COVERAGE);
-    // gl.sampleCoverage(0.5, false);
-    // console.log(gl.getContextAttributes())
-    let ext = gl.getExtension("OES_standard_derivatives"); 
-    if (!ext) { 
-        alert("this machine or browser does not support OES_standard_derivatives"); 
-    } 
+)).then(async shader => {
+let loader = new GltfLoader();
+let uri = '../model/居家工作办公环境.gltf';
+let asset: GltfAsset = await loader.load(uri);
+let gltf: GlTf = asset.gltf;
+console.log(gltf);
 
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.enable(gl.DEPTH_TEST);
+	let sceneIndex = gltf.scene?gltf.scene:0;
+        let scene = (gltf.scenes as Scene[])[sceneIndex];
+        let rootNodes = scene.nodes;
+        for (let nodeIndex of rootNodes as number[]) {
+            // get to the first primitive
+            let node = (gltf.nodes as Node[])[nodeIndex];
+			console.log(node)
+            let child = (node as any).mesh;
+            let mesh = (gltf.meshes as Mesh[])[child];
+            let primitive = mesh.primitives[0];
 
-    const model_matrix = new Matrix4([]);
-    const perspective_matrix = new Matrix4([]);
-    const normal_matrix = new Matrix4([]);
+            // get the vertex data for the primitive
+            let positionAccessorIndex = primitive.attributes.POSITION;
 
-    const WIDTH = 6;
-    const OUTLINE_COLOR = [.6, .1, .5, 1];
-    const MODEL_COLOR = [.9, .65, .4, 1];
-    const WHITE = [1, 1, 1, 1];
+            //
+            // Get the binary data, which might be in a .bin file that still has to be loaded,
+            // in another part of the source GLB file, or embedded as a data URI.
+            //
+            let data = await asset.accessorData(positionAccessorIndex);
+            console.log("Accessor containing positions: ", data);
+            // For rendering, `data` can be bound via `gl.BindBuffer`,
+            // and the accessor properties can be used with `gl.VertexAttribPointer`
 
-    perspective_matrix.setPerspective(30, canvas.clientWidth / canvas.clientHeight, 1, 100);
+            // parse the material to get to the first texture
+            let material = (gltf.materials as Material[])[primitive.material as number];
+			console.log(((material.pbrMetallicRoughness as MaterialPbrMetallicRoughness)))
+            let baseColorTexture = (gltf.textures as Texture[])[((material.pbrMetallicRoughness as MaterialPbrMetallicRoughness).baseColorTexture as TextureInfo).index];
+            let imageIndex = baseColorTexture.source;
 
-    function drawModel(GL:any, shader:any, projection:any, modelView:any, lights:any, color:any, model:any)
-    {
-        GL.useProgram(shader.program);
-
-        GL.bindBuffer(GL.ARRAY_BUFFER, model.vertices);
-        GL.vertexAttribPointer(shader.verticesLoc, 3, GL.FLOAT, false, 0, 0);
-        GL.enableVertexAttribArray(shader.verticesLoc);
-
-        if ('normalsLoc' in shader) {
-            GL.bindBuffer(GL.ARRAY_BUFFER, model.normals);
-            GL.vertexAttribPointer(shader.normalsLoc, 3, GL.FLOAT, false, 0, 0);
-            GL.enableVertexAttribArray(shader.normalsLoc);
+            //
+            // Get image data which might also be in a separate file, in a GLB file,
+            // or embedded as a data URI.
+            //
+            let image = await asset.imageData.get(imageIndex as number);
+            document.body.appendChild(image);
+            // For rendering, use `gl.texImage2D` with the image
         }
-        
-        GL.uniformMatrix4fv(shader.projectionLoc, false, projection);
-        GL.uniformMatrix4fv(shader.modelViewLoc, false, modelView);
-        GL.uniform3fv(shader.ambientLightLoc, lights.ambient);
-        GL.uniform3fv(shader.lightDirLoc, lights.lightDir);
-        GL.uniform3fv(shader.lightColorLoc, lights.lightColor);
-        GL.uniform4fv(shader.colorLoc, color);
 
-        GL.drawArrays(GL.TRIANGLES, 0, model.count);
+    	const canvas = document.getElementById("canvas") as HTMLElement;
+		const gl = getWebGLContext(canvas,{});
 
-        GL.disableVertexAttribArray(shader.verticesLoc);
-        GL.disableVertexAttribArray(shader.normalsLoc);
-    }
+		if (!initShaders(gl, shader[0], shader[1])) {
+			console.log("Error to init shader");
+			return -1;
+		}
 
-
-
-    // gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
-	// gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ZERO);
-
-	// Create the texture for the selection mask.  For best (and easiest) results
-	// this should be the same size as the frame buffer.
-	const level = 0;
-	const border = 0;
-
-	const selectionMask = gl.createTexture();
-	gl.bindTexture(gl.TEXTURE_2D, selectionMask);
-	gl.texImage2D(gl.TEXTURE_2D, level, gl.RGBA,
-				  gl.drawingBufferWidth, gl.drawingBufferHeight, border,
-				  gl.RGBA, gl.UNSIGNED_BYTE, null);
-	// Set filtering to NEAREST;  we will be doing a lot of texture lookups
-	// in the fragment shader, but since we will always be looking up the
-	// center of a pixel, we can make the fragment shader faster by not
-	// interpolating.
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-	const maskFB = gl.createFramebuffer();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, maskFB);  // bind so we can set params
-	gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D,
-							selectionMask, level);
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);  // bind the canvas
-	gl.bindTexture(gl.TEXTURE_2D, null); // unbind the texture
-
-	// Create the quad for the overlay.  Opengl's native coordinate system
-	// ranges from (-1, -1) [lower left] to (1, 1) [upper right].  For simplicity
-	// use (0, 0) as lower left and (1, 1) as upper right and do the mapping
-	// in the shader.  This allows us to not bother with an additional texture
-	// coordinate array.
-	let quadVerts = [ 0, 0,   1, 0,   1, 1,
-					  1, 1,   0, 1,   0, 0 ];
-	const quad = { vertices: createGLBuffer(gl, quadVerts),
-				   count: quadVerts.length / 2 }
-	const pixelSize = [ 1.0 / gl.canvas.clientWidth,
-						1.0 / gl.canvas.clientHeight ];
-
-    const UNLIT_VERTEX = `
-        attribute vec4 pos;
-        uniform mat4 modelView;
-        uniform mat4 projection;
-        void main()
-        {
-            gl_Position = projection * modelView * pos;
-        }
-    `;
-
-    const UNLIT_FRAGMENT = `
-        precision highp float;
-        uniform vec4 color;
-        void main()
-        {
-            gl_FragColor = color;
-        }
-    `;
-    function createUnlitShader(GL:any)
-    {
-        const program = createProgram(GL, UNLIT_VERTEX, UNLIT_FRAGMENT);
-        return { program: program,
-                modelViewLoc: GL.getUniformLocation(program, 'modelView'),
-                projectionLoc: GL.getUniformLocation(program, 'projection'),
-                colorLoc: GL.getUniformLocation(program, 'color'),
-                verticesLoc: GL.getAttribLocation(program, 'pos'),
-            };
-    }
-
-    function createBlurShader(GL:any)
-    {
-        const program = createProgram(GL, shader[0], shader[1]);
-        return { program: program,
-                textureLoc: GL.getUniformLocation(program, 'texture'),
-                pixelSizeLoc: GL.getUniformLocation(program, 'pixelSize'),
-                kernelLoc: GL.getUniformLocation(program, 'kernel'),
-                colorLoc: GL.getUniformLocation(program, 'color'),
-                verticesLoc: GL.getAttribLocation(program, 'pos'),
-                sizeLoc: GL.getUniformLocation(program, 'u_size'),
-            };
-    }
-    const SIMPLE_VERTEX = `
-    attribute vec4 pos;
-    attribute vec3 normal;
-    uniform mat4 modelView;
-    uniform mat4 projection;
-    uniform vec3 lightDir;
-    varying vec3 vToLight;
-    varying vec3 vVertex;
-    varying vec3 vNormal;
-
-    void main()
-    {
-        gl_Position = projection * modelView * pos;
-
-        // This will work as long as modelView has uniform scaling
-        vToLight = (modelView * vec4(-lightDir, 0.0)).xyz;
-        vNormal = (modelView * vec4(normal, 0.0)).xyz;
-    }
-`;
-
-const SIMPLE_FRAGMENT = `
-    precision highp float;
-    uniform vec3 ambientLight;
-    uniform vec3 lightColor;
-    uniform vec4 color;
-    varying vec3 vToLight;
-    varying vec3 vNormal;
-    void main()
-    {
-        float NdotL = max(0.0, dot(vToLight, vNormal));
-        vec4 ambient = vec4(ambientLight, 1.0) * color;
-        vec4 diffuse = NdotL * vec4(lightColor, 1.0) * color;
-        gl_FragColor = ambient + diffuse;
-    }
-`;
-    function createLightingShader(GL:any)
-    {
-        const program = createProgram(GL, SIMPLE_VERTEX, SIMPLE_FRAGMENT);
-        return { program: program,
-                modelViewLoc: GL.getUniformLocation(program, 'modelView'),
-                projectionLoc: GL.getUniformLocation(program, 'projection'),
-                ambientLightLoc: GL.getUniformLocation(program, 'ambientLight'),
-                lightDirLoc: GL.getUniformLocation(program, 'lightDir'),
-                lightColorLoc: GL.getUniformLocation(program, 'lightColor'),
-                colorLoc: GL.getUniformLocation(program, 'color'),
-                verticesLoc: GL.getAttribLocation(program, 'pos'),
-                normalsLoc: GL.getAttribLocation(program, 'normal'),
-            };
-    }
-
-	const selectionShader = createUnlitShader(gl);
-    const blurShader = createBlurShader(gl);
-    const tableShader = createLightingShader(gl);
-
-    const LIGHTS = { ambient: [ 0.4, 0.4, 0.4 ],
-				 directional: {
-					 color: [ 1, 1, 1 ],
-					 direction: [ -1, -1, -1 ]
-				 },
-			   };
-    
-    function createLighting(lights:any)
-    {
-        let makeNormalized = function(v:any) {
-            const invLen = 1.0 / Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
-            return [ invLen * v[0], invLen * v[1], invLen * v[2] ];
-        };
-
-        return { ambient: lights.ambient,
-                            lightDir: makeNormalized(lights.directional.direction),
-                            lightColor: lights.directional.color
-                        };
-    }
-	const lights = createLighting(LIGHTS);
-	const model = createTable(gl);
-
-
-
-
-
-    requestAnimationFrame(render);
-
-    function render(nowMSec:any) {
-		const now = 0.1 * nowMSec
-        const ROTATION_TIME = 15.0;  // 模型旋转360度所需要的时间
-        const longPerSec = 2.0 * Math.PI / ROTATION_TIME;
-        const latPerSec = 0.5 * Math.PI / ROTATION_TIME;
-        const longitudeRad = (longPerSec * now) % 360.0;
-        const latitudeRad = (latPerSec * now) % 180.0;
-
-        model_matrix.setTranslate(0, 0, -8);
-        model_matrix.rotate(longitudeRad, 0.0, 1.0, 0.0);
-        model_matrix.rotate(latitudeRad, 0.0, 0.0, 1.0,);
-
-        normal_matrix.setInverseOf(model_matrix);
-        normal_matrix.transpose();
-
-
-
-		gl.bindFramebuffer(gl.FRAMEBUFFER, maskFB);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-		drawModel(gl, selectionShader, perspective_matrix.elements, model_matrix.elements, lights, OUTLINE_COLOR, model);
-		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-
-
-
-		gl.bindTexture(gl.TEXTURE_2D, selectionMask);
-		gl.useProgram(blurShader.program);
-		gl.bindBuffer(gl.ARRAY_BUFFER, quad.vertices);
-		gl.vertexAttribPointer(blurShader.verticesLoc, 2, gl.FLOAT, false, 0, 0);
-		gl.enableVertexAttribArray(blurShader.verticesLoc);
-		gl.uniform1i(blurShader.textureLoc, 0);  // first texture
-		gl.uniform2fv(blurShader.pixelSizeLoc, pixelSize);
-		gl.uniform4fv(blurShader.colorLoc, OUTLINE_COLOR);
-        gl.uniform1f(blurShader.sizeLoc, Math.max(gl.drawingBufferWidth,gl.drawingBufferHeight));   
-
-		gl.disable(gl.DEPTH_TEST);
-		gl.enable(gl.BLEND);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-		gl.drawArrays(gl.TRIANGLES, 0, quad.count);
-		gl.disable(gl.BLEND);
+		gl.clearColor(0.0, 0.0, 0.0, 1.0);
 		gl.enable(gl.DEPTH_TEST);
-		gl.disableVertexAttribArray(blurShader.verticesLoc);
-		gl.bindTexture(gl.TEXTURE_2D, null);
+
+		const model_matrix = new Matrix4([]);
+		const view_matrix = new Matrix4([]);
+		const perspective_matrix = new Matrix4([]);
+
+		let vertices = new Float32Array([
+			 1.0,  1.0,  1.0, 1.0, 1.0, 1.0,
+			-1.0,  1.0,  1.0, 1.0, 0.0, 1.0,
+			-1.0, -1.0,  1.0, 1.0, 0.0, 0.0,
+			 1.0, -1.0,  1.0, 1.0, 1.0, 0.0,
+			 1.0, -1.0, -1.0, 0.0, 1.0, 0.0,
+			 1.0,  1.0, -1.0, 0.0, 1.0, 1.0,
+			-1.0,  1.0, -1.0, 0.0, 0.0, 1.0,
+			-1.0, -1.0, -1.0, 0.0, 0.0, 0.0,
+		]);
 
 
-		drawModel(gl, tableShader, perspective_matrix.elements, model_matrix.elements, lights, MODEL_COLOR, model);
+		let indices = new Uint8Array([
+			0, 1, 2, 0, 2, 3,
+			0, 3, 4, 0, 4, 5,
+			0, 5, 6, 0, 6, 1,
+			1, 6, 7, 1, 7, 2,
+			7, 4, 3, 7, 3, 2,
+			4, 7, 6, 4, 6, 5
+		]);
+
+
+		console.log(indices.length)
+		const fsize = vertices.BYTES_PER_ELEMENT;
+
+		const a_position = gl.getAttribLocation(gl.program, "a_position");
+		// const a_color = gl.getAttribLocation(gl.program, "a_color");
+		const u_model = gl.getUniformLocation(gl.program, "u_model");
+		const u_view = gl.getUniformLocation(gl.program, "u_view");
+		const u_perspective = gl.getUniformLocation(gl.program, "u_perspective");
+
+		const vertex_buffer = gl.createBuffer();
+		const index_buffer = gl.createBuffer();
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+
+		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+		gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, fsize * 6, 0);
+		// gl.vertexAttribPointer(a_color, 3, gl.FLOAT, false, fsize * 6, fsize * 3);
+
+		gl.enableVertexAttribArray(a_position);
+		// gl.enableVertexAttribArray(a_color);
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+		let eyeX = -5, eyeY = 7, eyeZ = 16;
+		document.addEventListener("keydown", function (e) {
+			switch (e.key) {
+			case "ArrowLeft":
+				eyeX -= 0.01;
+				break;
+			case "ArrowRight":
+				eyeX += 0.01;
+				break;
+			case "ArrowUp":
+				eyeY += 0.01;
+				break;
+			case "ArrowDown":
+				eyeY -= 0.01;
+				break;
+			}
+		})
+
+		perspective_matrix.setPerspective(45, canvas.clientWidth / canvas.clientHeight, 1, 100);
+
+		gl.uniformMatrix4fv(u_perspective, false, perspective_matrix.elements);
+
 
         requestAnimationFrame(render);
-    }
-})
+
+        function render(nowMSec:any) {
+            // model_matrix.setTranslate(0, 0, 0);
+            // model_matrix.rotate(30, 0.0, 1.0, 1.0);
+            view_matrix.setLookAt(eyeX, eyeY, eyeZ, -5.0, 7.0, 0.0, 0.0, 1.0, 0.0)
+
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            gl.uniformMatrix4fv(u_view, false, view_matrix.elements);
+
+            gl.uniformMatrix4fv(u_model, false, model_matrix.elements);
+
+            gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_BYTE, 0);
+
+            requestAnimationFrame(render);
+        }
+});
+
+
+
+
+
 
