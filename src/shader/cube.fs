@@ -1,3 +1,4 @@
+#extension GL_OES_standard_derivatives : enable
 precision mediump float;
 varying vec2 vUv;
 uniform sampler2D texture;
@@ -42,14 +43,33 @@ float shade(const in float shading, const in vec2 uv) {
 
 void main() {
 
-    vec2 uv = vUv * 15.0;
-    vec2 uv2 = vUv.yx * 10.0;
-    float shading = texture2D(texture, vUv).r + .1;
-    float crossedShading = shade(shading, uv) * shade(shading, uv2) * 0.6 + 0.4;
-    gl_FragColor = vec4(vec3(crossedShading), 1.0);
+    // 生成素描线
+    // vec2 uv = vUv * 15.0;
+    // vec2 uv2 = vUv.yx * 10.0;
+    // float shading = texture2D(texture, vUv).r + .1;
+    // float crossedShading = shade(shading, uv) * shade(shading, uv2) * 0.6 + 0.4;
+    // gl_FragColor = vec4(vec3(crossedShading), 1.0);
+
+
+
+
+
     
 
 
+
     // gl_FragColor = texture2D(texture, vUv);
+
+    // 生成轮廓的深度贴图
+    // gl_FragColor = vec4(vec3((gl_FragCoord.z / gl_FragCoord.w)* .02),1.0);
+
+
+
+    float depth = (gl_FragCoord.z/gl_FragCoord.w) * .02;
+    if (fwidth(depth) > 0.0019) {
+      gl_FragColor = vec4(.0,.0,.0,1.);
+    } else {
+      gl_FragColor = vec4(1.,1.,1.,1.);
+    }
 
 }
