@@ -12,6 +12,10 @@ Promise.all(models.map(url =>
 
 	const canvas = document.getElementById("canvas") as HTMLElement;
 	const gl = getWebGLContext(canvas, {});
+	let ext = gl.getExtension("OES_standard_derivatives"); 
+    if (!ext) { 
+        alert("this machine or browser does not support OES_standard_derivatives"); 
+    } 
 
 	// if (!initShaders(gl, shader[0], shader[1])) {
 	// 	console.log("Error to init shader");
