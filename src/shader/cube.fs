@@ -1,11 +1,11 @@
 #extension GL_OES_standard_derivatives : enable
 precision mediump float;
-varying vec2 vUv;
 uniform sampler2D texture;
 uniform sampler2D hatch0;
 uniform sampler2D hatch1;
 uniform sampler2D hatch2;
 uniform vec2 u_size;
+varying vec3 vNormals;
 
 float shade(const in float shading, const in vec2 uv) {
   float shadingFactor;
@@ -64,12 +64,6 @@ void main() {
     // gl_FragColor = vec4(vec3((gl_FragCoord.z / gl_FragCoord.w)* .02),1.0);
 
 
-
-    float depth = (gl_FragCoord.z/gl_FragCoord.w) * .02;
-    if (fwidth(depth) > 0.0019) {
-      gl_FragColor = vec4(.0,.0,.0,1.);
-    } else {
-      gl_FragColor = vec4(1.,1.,1.,1.);
-    }
-
+    // 生成法线贴图
+    gl_FragColor = vec4(vNormals,1.0);
 }
