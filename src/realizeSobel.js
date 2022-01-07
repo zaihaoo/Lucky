@@ -1,8 +1,8 @@
-import "../lib/cuon-utils";
-import "../lib/cuon-matrix";
-import "../lib/webgl-debug";
-import "../lib/webgl-utils";
-import { vertex, uv, normals } from './createModel';
+import "../lib/cuon-utils.js";
+import "../lib/cuon-matrix.js";
+import "../lib/webgl-debug.js";
+import "../lib/webgl-utils.js";
+import { vertex, uv, normals } from './createModel.js';
 
 
 const models = ["src/shader/cube.vs", "src/shader/cube.fs", "src/shader/outline.vs", "src/shader/outline.fs", "src/shader/combine.vs", "src/shader/combine.fs"];
