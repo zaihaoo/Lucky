@@ -10,7 +10,7 @@ Promise.all(models.map(url =>
 	fetch(url).then(resp => resp.text())
 )).then(async shader => {
 
-	const canvas = document.getElementById("canvas") as HTMLElement;
+	const canvas = document.getElementById("canvas");
 	const gl = getWebGLContext(canvas, {});
 	let ext = gl.getExtension("OES_standard_derivatives"); 
     if (!ext) { 
@@ -57,7 +57,7 @@ Promise.all(models.map(url =>
 
 
 	// 初始化VAO
-	const _initVAOBuffer = (data:Float32Array) => {
+	const _initVAOBuffer = (data) => {
 		let buffer = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
 		gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
@@ -148,7 +148,7 @@ Promise.all(models.map(url =>
 		image.src = "../model/hatch_2.jpg";
 	}
 
-	function _createTexture(textureNo: GLint, image: HTMLImageElement | null) {
+	function _createTexture(textureNo, image) {
 
 		gl.activeTexture(textureNo);
 		let mask = gl.createTexture();
@@ -195,7 +195,7 @@ Promise.all(models.map(url =>
 	_loadShading(); _loadHatch0(); _loadHatch1(); _loadHatch2();
 	requestAnimationFrame(render);
 
-	function render(nowMSec: any) {
+	function render(nowMSec) {
 		if (finish == target) {
 			view_matrix.setLookAt(eyeX, eyeY, eyeZ, -5.0, 7.0, 0.0, 0.0, 1.0, 0.0);
 			gl.bindFramebuffer(gl.FRAMEBUFFER, maskFB);
