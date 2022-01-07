@@ -115,7 +115,7 @@ Promise.all(models.map(url =>
 			gl.uniform1i(combineShader.u_sampler, 0);
 			finish++;
 		}
-		image.src = "../model/room_baked.png";
+		image.src = "model/room_baked.png";
 	}
 	let _loadHatch0 = () => {
 		let image = new Image();
@@ -125,7 +125,7 @@ Promise.all(models.map(url =>
 			gl.uniform1i(combineShader.u_hatch0_sampler, 1);
 			finish++;
 		}
-		image.src = "../model/hatch_0.jpg";
+		image.src = "model/hatch_0.jpg";
 	}
 	let _loadHatch1 = () => {
 		let image = new Image();
@@ -135,7 +135,7 @@ Promise.all(models.map(url =>
 			gl.uniform1i(combineShader.u_hatch1_sampler, 2);
 			finish++;
 		}
-		image.src = "../model/hatch_1.jpg";
+		image.src = "model/hatch_1.jpg";
 	}
 	let _loadHatch2 = () => {
 		let image = new Image();
@@ -145,7 +145,7 @@ Promise.all(models.map(url =>
 			gl.uniform1i(combineShader.u_hatch2_sampler, 3);
 			finish++;
 		}
-		image.src = "../model/hatch_2.jpg";
+		image.src = "model/hatch_2.jpg";
 	}
 
 	function _createTexture(textureNo, image) {
