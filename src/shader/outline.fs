@@ -68,11 +68,12 @@ void main() {
     // gl_FragColor = vec4(vec3((gl_FragCoord.z / gl_FragCoord.w)* .02),1.0);
 
     vec2 screen_coord = gl_FragCoord.xy;
-    vec4 current_normal = texture2D(texture,screen_coord/u_size);
-    vec4 top_normal = texture2D(texture,vec2(screen_coord.x,screen_coord.y+1.)/u_size);
-    vec4 down_normal = texture2D(texture,vec2(screen_coord.x,screen_coord.y-1.)/u_size);
-    vec4 left_normal = texture2D(texture,vec2(screen_coord.x-1.,screen_coord.y)/u_size);
-    vec4 right_normal = texture2D(texture,vec2(screen_coord.x+1.,screen_coord.y)/u_size);
+    vec4 current_normal = texture2D(texture,screen_coord/u_size) * 2.0 - 1.0;
+
+    vec4 top_normal = texture2D(texture,vec2(screen_coord.x,screen_coord.y+1.)/u_size) * 2.0 - 1.0;
+    vec4 down_normal = texture2D(texture,vec2(screen_coord.x,screen_coord.y-1.)/u_size) * 2.0 - 1.0;
+    vec4 left_normal = texture2D(texture,vec2(screen_coord.x-1.,screen_coord.y)/u_size) * 2.0 - 1.0;
+    vec4 right_normal = texture2D(texture,vec2(screen_coord.x+1.,screen_coord.y)/u_size) * 2.0 - 1.0;
 
     float top_theta = dot(current_normal,top_normal)/(length(current_normal)*length(top_normal));
     float down_theta = dot(current_normal,down_normal)/(length(current_normal)*length(down_normal));

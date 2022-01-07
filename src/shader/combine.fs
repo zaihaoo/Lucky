@@ -1,11 +1,13 @@
 #extension GL_OES_standard_derivatives : enable
 precision mediump float;
 uniform sampler2D texture;
+uniform sampler2D outline_texture;
 uniform sampler2D hatch0;
 uniform sampler2D hatch1;
 uniform sampler2D hatch2;
 uniform vec2 u_size;
 varying vec3 vNormals;
+varying vec2 vUv;
 
 float shade(const in float shading, const in vec2 uv) {
   float shadingFactor;
@@ -44,27 +46,17 @@ float shade(const in float shading, const in vec2 uv) {
 void main() {
 
     // 生成素描线
-    // vec2 uv = vUv * 15.0;
-    // vec2 uv2 = vUv.yx * 10.0;
-    // float shading = texture2D(texture, vUv).r + .1;
-    // float crossedShading = shade(shading, uv) * shade(shading, uv2) * 0.6 + 0.4;
-    // gl_FragColor = vec4(vec3(crossedShading), 1.0);
+    vec2 uv = vUv * 15.0;
+    vec2 uv2 = vUv.yx * 10.0;
+    float shading = texture2D(texture, vUv).r + .1;
+    float crossedShading = shade(shading, uv) * shade(shading, uv2) * 0.6 + 0.4;
+    vec4 sketch = vec4(vec3(crossedShading), 1.0);
+
+    vec4 outline = texture2D(outline_texture, gl_FragCoord.xy/u_size);
 
 
-
-
-
-    
-
-
-
-    // gl_FragColor = texture2D(texture, vUv);
+    gl_FragColor = sketch * outline;
 
     // 生成轮廓的深度贴图
     // gl_FragColor = vec4(vec3((gl_FragCoord.z / gl_FragCoord.w)* .02),1.0);
-
-
-    // 生成法线贴图
-    vec3 normals = (vNormals + 1.0) / 2.0;
-    gl_FragColor = vec4(normals,1.0);
 }

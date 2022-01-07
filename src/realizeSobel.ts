@@ -5,7 +5,7 @@ import "../lib/webgl-utils";
 import { vertex, uv, normals } from './createModel';
 
 
-const models = ["src/shader/cube.vs", "src/shader/cube.fs", "src/shader/outline.vs", "src/shader/outline.fs"];
+const models = ["src/shader/cube.vs", "src/shader/cube.fs", "src/shader/outline.vs", "src/shader/outline.fs", "src/shader/combine.vs", "src/shader/combine.fs"];
 Promise.all(models.map(url =>
 	fetch(url).then(resp => resp.text())
 )).then(async shader => {
@@ -39,6 +39,21 @@ Promise.all(models.map(url =>
 	outlineShader.outline_a_pos = gl.getAttribLocation(outlineShader, "pos");
 	outlineShader.outline_normal_sampler = gl.getUniformLocation(outlineShader, "texture");
 	outlineShader.outline_u_size = gl.getUniformLocation(outlineShader, "u_size");
+
+	// 创建combineShader着色器
+	const combineShader = createProgram(gl, shader[4], shader[5]);
+	combineShader.a_position = gl.getAttribLocation(combineShader, "a_position");
+	combineShader.a_uv = gl.getAttribLocation(combineShader, "uv");
+	combineShader.a_normals = gl.getAttribLocation(combineShader, "normals");
+	combineShader.u_model = gl.getUniformLocation(combineShader, "u_model");
+	combineShader.u_view = gl.getUniformLocation(combineShader, "u_view");
+	combineShader.u_perspective = gl.getUniformLocation(combineShader, "u_perspective");
+	combineShader.u_sampler = gl.getUniformLocation(combineShader, "texture");
+	combineShader.u_hatch0_sampler = gl.getUniformLocation(combineShader, "hatch0");
+	combineShader.u_hatch1_sampler = gl.getUniformLocation(combineShader, "hatch1");
+	combineShader.u_hatch2_sampler = gl.getUniformLocation(combineShader, "hatch2");
+	combineShader.u_size = gl.getUniformLocation(combineShader, "u_size");
+	combineShader.outline_sampler = gl.getUniformLocation(combineShader, "outline_texture");;
 
 
 	// 初始化VAO
@@ -95,9 +110,9 @@ Promise.all(models.map(url =>
 	let _loadShading = () => {
 		let image = new Image();
 		image.onload = function () {
-			gl.useProgram(normalShader);
+			gl.useProgram(combineShader);
 			let tex = _createTexture(gl.TEXTURE0, image);
-			gl.uniform1i(normalShader.u_sampler, 0);
+			gl.uniform1i(combineShader.u_sampler, 0);
 			finish++;
 		}
 		image.src = "../model/room_baked.png";
@@ -105,9 +120,9 @@ Promise.all(models.map(url =>
 	let _loadHatch0 = () => {
 		let image = new Image();
 		image.onload = function () {
-			gl.useProgram(normalShader);
+			gl.useProgram(combineShader);
 			let tex = _createTexture(gl.TEXTURE1, image);
-			gl.uniform1i(normalShader.u_hatch0_sampler, 1);
+			gl.uniform1i(combineShader.u_hatch0_sampler, 1);
 			finish++;
 		}
 		image.src = "../model/hatch_0.jpg";
@@ -115,9 +130,9 @@ Promise.all(models.map(url =>
 	let _loadHatch1 = () => {
 		let image = new Image();
 		image.onload = function () {
-			gl.useProgram(normalShader);
+			gl.useProgram(combineShader);
 			let tex = _createTexture(gl.TEXTURE2, image);
-			gl.uniform1i(normalShader.u_hatch1_sampler, 2);
+			gl.uniform1i(combineShader.u_hatch1_sampler, 2);
 			finish++;
 		}
 		image.src = "../model/hatch_1.jpg";
@@ -125,9 +140,9 @@ Promise.all(models.map(url =>
 	let _loadHatch2 = () => {
 		let image = new Image();
 		image.onload = function () {
-			gl.useProgram(normalShader);
+			gl.useProgram(combineShader);
 			let tex = _createTexture(gl.TEXTURE3, image);
-			gl.uniform1i(normalShader.u_hatch2_sampler, 3);
+			gl.uniform1i(combineShader.u_hatch2_sampler, 3);
 			finish++;
 		}
 		image.src = "../model/hatch_2.jpg";
@@ -208,13 +223,12 @@ Promise.all(models.map(url =>
 			gl.disableVertexAttribArray(normalShader.a_uv);
 			gl.disableVertexAttribArray(normalShader.a_normals);
 			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
-			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 
 			gl.useProgram(outlineShader);
 			gl.activeTexture(gl.TEXTURE4);
 			gl.bindTexture(gl.TEXTURE_2D, normalMask);
-			// gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, outlineMask, 0);
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, outlineMask, 0);
 
 			// VAO、VBO赋值
 			gl.uniform2fv(outlineShader.outline_u_size, [gl.drawingBufferWidth, gl.drawingBufferHeight]);
@@ -227,8 +241,35 @@ Promise.all(models.map(url =>
 			gl.drawArrays(gl.TRIANGLES, 0, cubeVertex32.length / 2);
 			gl.disableVertexAttribArray(outlineShader.outline_a_pos);
 			gl.bindTexture(gl.TEXTURE_2D,null);
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
 
+			gl.useProgram(combineShader);
+			gl.bindTexture(gl.TEXTURE_2D, outlineMask);
+
+			// VAO、VBO赋值
+			gl.uniformMatrix4fv(combineShader.u_perspective, false, perspective_matrix.elements);
+			gl.uniformMatrix4fv(combineShader.u_view, false, view_matrix.elements);
+			gl.uniformMatrix4fv(combineShader.u_model, false, model_matrix.elements);
+			gl.uniform2fv(combineShader.u_size, [gl.drawingBufferWidth, gl.drawingBufferHeight]);
+			gl.uniform1i(combineShader.outline_sampler, 4);
+			// gl.uniform1i(combineShader.u_sampler, 0);
+			gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+			gl.vertexAttribPointer(combineShader.a_position, 3, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(combineShader.a_position);
+			gl.bindBuffer(gl.ARRAY_BUFFER, uv_buffer);
+			gl.vertexAttribPointer(combineShader.a_uv, 2, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(combineShader.a_uv);
+			gl.bindBuffer(gl.ARRAY_BUFFER, normals_buffer);
+			gl.vertexAttribPointer(combineShader.a_normals, 3, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(combineShader.a_normals);
+
+			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+			gl.drawArrays(gl.TRIANGLES, 0, ver32.length / 3);
+			gl.disableVertexAttribArray(combineShader.a_position);
+			gl.disableVertexAttribArray(combineShader.a_uv);
+			gl.disableVertexAttribArray(combineShader.a_normals);
 
 		}
 		requestAnimationFrame(render);
