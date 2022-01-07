@@ -34984,11 +34984,11 @@ export let normals = [
 
 
 
-export function createTable(GL:any,out=false)
+export function createTable(GL,out=false)
 {
 	// Create everything using JS arrays, since they are expandable
-	let verts:any = [];
-	let normals:any = [];
+	let verts = [];
+	let normals = [];
 	const height = 0.5;
 	const bottomY = -height / 2;
 	let radius = 0.5;
@@ -35006,7 +35006,7 @@ export function createTable(GL:any,out=false)
 	const crossLen = 2.0 * legPos;
 	const crossSize = 0.6 * legSize;
 	const modelColor = [.9, .65, .4];
-	let colors:any = [];
+	let colors = [];
 	
 	// legs
 	addCube(verts, normals, -legPos, legY, -legPos, legSize, height, legSize);
@@ -35038,7 +35038,7 @@ export function createTable(GL:any,out=false)
 	return table;
 }
 
-export function createGLBuffer(GL:any, data:any)
+export function createGLBuffer(GL, data)
 {
 	const buffer = GL.createBuffer();
 	GL.bindBuffer(GL.ARRAY_BUFFER, buffer);
@@ -35047,7 +35047,7 @@ export function createGLBuffer(GL:any, data:any)
 	// return new Float32Array(data);
 }
 
-function addCube(verts:any, normals:any, x:any, y:any, z:any, xSize:any, ySize:any, zSize:any)
+function addCube(verts, normals, x, y, z, xSize, ySize, zSize)
 {
 	const halfX = xSize / 2.0;
 	const halfY = ySize / 2.0;
@@ -35093,14 +35093,14 @@ function addCube(verts:any, normals:any, x:any, y:any, z:any, xSize:any, ySize:a
 	addTri(verts, normals, H, n, D, n, B, n);
 }
 
-function addTri(vertices:any, normals:any, v1:any, n1:any, v2:any, n2:any, v3:any, n3:any)
+function addTri(vertices, normals, v1, n1, v2, n2, v3, n3)
 {
 	addVertex(vertices, normals, v1, n1);
 	addVertex(vertices, normals, v2, n2);
 	addVertex(vertices, normals, v3, n3);
 }
 
-function addVertex(vertices:any, normals:any, v:any, n:any)
+function addVertex(vertices, normals, v, n)
 {
 	vertices.push(v[0]);
 	vertices.push(v[1]);
